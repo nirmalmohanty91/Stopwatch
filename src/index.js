@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import { createStore } from 'redux';
+import { connect, Provider } from 'react-redux';
 import * as serviceWorker from './serviceWorker';
 
 let model = {
@@ -19,32 +20,45 @@ let intents = {
 
 const update = (model = { running: false, time: 0 }, action) => {
     const updates = {
-        'START': (model) => Object.assign(model, { running: true }),
-        'STOP': (model) => Object.assign(model, { running: false }),
-        'TICK': (model) => Object.assign(model, { time: model.time + (model.running ? 1 : 0) })
+        'START': (model) => Object.assign({}, model, { running: true }),
+        'STOP': (model) => Object.assign({}, model, { running: false }),
+        'TICK': (model) => Object.assign({}, model, { time: model.time + (model.running ? 1 : 0) })
     }
     return (updates[action.type] || (() => model))(model);
 };
 
-let view = (m) => {
-    let minutes = Math.floor(m.time / 60);
-    let seconds = m.time - (minutes * 60);
+function mapStateToProps(state) {
+    return state;
+}
+
+function mapDispatchToProps(dispatch) {
+    return {
+        onStart: () => { dispatch({ type: 'START' }); },
+        onStop: () => { dispatch({ type: 'STOP' }); },
+    };
+}
+
+
+
+//This is a function from a Model(m) to JSX. By definition view is there for a React component.
+//And since it is a React component it can be wrapped in the connect function from react-redux.
+let Stopwatch = connect(mapStateToProps, mapDispatchToProps)((props) => {
+    let minutes = Math.floor(props.time / 60);
+    let seconds = props.time - (minutes * 60);
     let secondsFormatted = `${seconds < 10 ? '0' : ''}${seconds}`;
-    let handler = (event) => {
-        container.dispatch(m.running ? { type: 'STOP' } : { type: 'START' })
-    }
+
     return <div><p>{minutes}:{secondsFormatted}</p>
-        <button onClick={handler}>{m.running ? 'Stop' : 'Start'}</button>
+        <button onClick={props.running ? props.onStop : props.onStart}>{props.running ? 'Stop' : 'Start'}</button>
     </div>
-};
+});
 
 let container = createStore(update);
 
-const render = () => {
-    ReactDOM.render(view(container.getState()), document.getElementById('root'));
-}
+ReactDOM.render((<Provider store={container}>
+    <Stopwatch />
+</Provider>), document.getElementById('root'));
 
-container.subscribe(render);
+
 
 setInterval(() => {
     container.dispatch({ type: 'TICK' });
